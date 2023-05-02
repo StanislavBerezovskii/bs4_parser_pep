@@ -10,8 +10,9 @@ from urllib.parse import urljoin
 
 from configs import configure_argument_parser, configure_logging
 from constants import BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL, MAIN_PEP_URL
+from exceptions import ParserFindTagException
 from outputs import control_output
-from utils import get_response, find_tag
+from utils import find_tag, get_response
 
 
 def whats_new(session):
@@ -26,7 +27,7 @@ def whats_new(session):
         'li', attrs={'class': 'toctree-l1'}
     )
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
-    for section in tqdm(sections_by_python, desc='Parsing...'):
+    for section in tqdm(sections_by_python, desc='Парсинг...'):
         version_a_tag = find_tag(section, 'a')
         href = version_a_tag['href']
         version_link = urljoin(whats_new_url, href)
@@ -38,11 +39,13 @@ def whats_new(session):
         dl = find_tag(soup, 'dl')
         dl_text = dl.text.replace('\n', ' ')
         results.append((version_link, h1.text, dl_text))
-        return results
+    return results
 
 
 def latest_versions(session):
     response = get_response(session, MAIN_DOC_URL)
+    if response is None:
+        return
     soup = BeautifulSoup(response.text, 'lxml')
     sidebar = find_tag(soup, 'div', attrs={'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
@@ -51,7 +54,7 @@ def latest_versions(session):
             a_tags = ul.find_all('a')
             break
         else:
-            raise Exception('Ничего не нашлось')
+            raise ParserFindTagException
     results = [('Ссылка на документацию', 'Версия', 'Статус')]
     pattern = r'Python (?P<version>\d\.\d+) \((?P<status>.*)\)'
     for a_tag in a_tags:
@@ -62,7 +65,7 @@ def latest_versions(session):
         else:
             version, status = a_tag.text, ''
         results.append((link, version, status))
-        return results
+    return results
 
 
 def download(session):
@@ -124,8 +127,8 @@ def pep(session):
                             f'{EXPECTED_STATUS[table_status]}\n'
                                 )
     for key in count_status_in_card:
-        result.append((key, str(count_status_in_card[key])))
-    result.append(('Total', len(peps_row)-1))
+        result.extend([(key, str(count_status_in_card[key]))])
+    result.append(('Total', len(peps_row) - 1))
     return result
 
 
