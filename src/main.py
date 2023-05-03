@@ -126,8 +126,7 @@ def pep(session):
                             f'Expected status: '
                             f'{EXPECTED_STATUS[table_status]}\n'
                                 )
-    for key in count_status_in_card:
-        result.extend([(key, str(count_status_in_card[key]))])
+    result.extend(list(count_status_in_card.items()))
     result.append(('Total', len(peps_row) - 1))
     return result
 
